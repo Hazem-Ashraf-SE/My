@@ -75,8 +75,24 @@
                         <tr><th>Model</th><td>{{$product->model}}</td></tr>
                         <tr><th>Code</th><td>{{$product->code}}</td></tr>
                         <tr><th>Price</th><td>{{$product->price}}</td>
+
+                        <!-- Added Now -->
+                        <!-- Added Now -->
+                        <tr><th>In Stock</th>
+                        <td>@if ($product->in_stock)
+                            <form action="{{ route('products.buy', $product->id) }}" method="POST" style="margin-top: 5px;">
+                                @csrf
+                                <button type="submit">Buy Now</button>
+                            </form>
+                        @else
+                            <button disabled>Out of Stock</button>
+                        @endif</td></tr>
+                        <!-- Added Now -->
+                        <!-- Added Now -->
+
                         <tr><th>Description</th><td>{{$product->description}}</td></tr>
                     </table>
+
                 </div>
             </div>
         </div>

@@ -7,6 +7,7 @@ use DB;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use Illuminate\Support\Facades\Auth;
 
 class ProductsController extends Controller {
 
@@ -37,6 +38,41 @@ class ProductsController extends Controller {
 
 		return view('products.list', compact('products'));
 	}
+
+
+// Added now
+// Added now
+	public function buy(Request $request, Product $product)
+{
+    $user = Auth::user();
+
+    if (!$user) {
+        return redirect('/login');
+    }
+
+    if (!$product->in_stock) {
+        return redirect()->back()->with('error', 'This product is currently out of stock.');
+    }
+
+    if ($user->credit < $product->price) {
+        return redirect()->back()->with('error', 'Insufficient credit to purchase this product.');
+    }
+
+    // Deduct credit and mark as purchased
+    $user->credit -= $product->price;
+    $user->save();
+
+    $product->in_stock = false;
+    $product->save();
+
+    // Optionally track purchase
+    $user->purchases()->attach($product->id);
+
+    return redirect()->back()->with('success', 'Thank you for your purchase!');
+}
+// Added now
+// Added now
+
 
 	public function edit(Request $request, Product $product = null) {
 
