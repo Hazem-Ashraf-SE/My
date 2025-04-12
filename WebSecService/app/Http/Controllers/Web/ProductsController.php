@@ -8,6 +8,7 @@ use DB;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Foundation\Auth\User;
 
 class ProductsController extends Controller {
 
@@ -39,40 +40,39 @@ class ProductsController extends Controller {
 		return view('products.list', compact('products'));
 	}
 
-
-// Added now
-// Added now
 	public function buy(Request $request, Product $product)
-{
-    $user = Auth::user();
+	{
+		$user = Auth::user();
 
-    if (!$user) {
-        return redirect('/login');
-    }
+		if (!$user) {
+			return redirect('/login');
+		}
 
-    if (!$product->in_stock) {
-        return redirect()->back()->with('error', 'This product is currently out of stock.');
-    }
+		if (!$product->in_stock) {
+			return redirect()->back()->with('error', 'This product is currently out of stock.');
+		}
 
-    if ($user->credit < $product->price) {
-        return redirect()->back()->with('error', 'Insufficient credit to purchase this product.');
-    }
+		if ($user->credit < $product->price) {
+			return redirect()->back()->with('error', 'Insufficient credit to purchase this product.');
+		}
 
-    // Deduct credit and mark as purchased
-    $user->credit -= $product->price;
-    $user->save();
+		// Deduct credit and mark as purchased
+		$user->credit -= $product->price;
+		$user->save();
 
-    $product->in_stock = false;
-    $product->save();
+		$product->in_stock = false;
+		$product->save();
 
-    // Optionally track purchase
-    $user->purchases()->attach($product->id);
+		// Record the purchase in the database
+		DB::table('purchases')->insert([
+			'user_id' => $user->id,
+			'product_id' => $product->id,
+			'created_at' => now(),
+			'updated_at' => now()
+		]);
 
-    return redirect()->back()->with('success', 'Thank you for your purchase!');
-}
-// Added now
-// Added now
-
+		return redirect()->back()->with('success', 'Thank you for your purchase!');
+	}
 
 	public function edit(Request $request, Product $product = null) {
 
@@ -107,6 +107,20 @@ class ProductsController extends Controller {
 		$product->delete();
 
 		return redirect()->route('products_list');
+	}
+
+	public function updateQuantity(Request $request, Product $product)
+	{
+		if(!auth()->user()->hasRole('Employee')) abort(401);
+
+		$request->validate([
+			'quantity' => 'required|integer|min:0'
+		]);
+
+		$product->quantity = $request->quantity;
+		$product->save();
+
+		return redirect()->back()->with('success', 'Product quantity updated successfully.');
 	}
 
 	/*

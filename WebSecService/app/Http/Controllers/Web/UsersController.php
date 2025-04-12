@@ -19,15 +19,70 @@ class UsersController extends Controller {
 
     public function list(Request $request) {
         if(!auth()->user()->hasPermissionTo('show_users'))abort(401);
+        
         $query = User::select('*');
+        
+        // If user is Employee, only show Customer role users
+        if (auth()->user()->hasRole('Employee')) {
+            $query->whereHas('roles', function($q) {
+                $q->where('name', 'Customer');
+            });
+        }
+        
         $query->when($request->keywords, 
         fn($q)=> $q->where("name", "like", "%$request->keywords%"));
         $users = $query->get();
+        
+        // Load roles for each user
+        foreach ($users as $user) {
+            $user->load('roles');
+        }
+        
         return view('users.list', compact('users'));
     }
 
 	public function register(Request $request) {
         return view('users.register');
+    }
+
+// Added Now 
+// Added Now 
+    public function buy(Request $request, Product $product)
+    {
+        if (!auth()->check()) {
+            return redirect('/login');
+        }
+
+        if (!$product->in_stock) {
+            return redirect()->back()->with('error', 'This product is currently out of stock.');
+        }
+
+        // Mark product as out of stock after purchase
+        $product->in_stock = false;
+        $product->save();
+
+        return redirect()->back()->with('success', 'Thank you for your purchase!');
+    }
+// Added Now 
+// Added Now 
+
+    private function ensureCustomerRoleExists()
+    {
+        // Check if Customer role exists
+        $customerRole = Role::where('name', 'Customer')->first();
+        
+        // If not, create it
+        if (!$customerRole) {
+            $customerRole = Role::create([
+                'name' => 'Customer',
+                'guard_name' => 'web'
+            ]);
+            
+            // Clear cache to ensure role is recognized
+            Artisan::call('cache:clear');
+        }
+        
+        return $customerRole;
     }
 
     public function doRegister(Request $request) {
@@ -40,18 +95,52 @@ class UsersController extends Controller {
 	    	]);
     	}
     	catch(\Exception $e) {
-
     		return redirect()->back()->withInput($request->input())->withErrors('Invalid registration information.');
     	}
 
-    	
-    	$user =  new User();
-	    $user->name = $request->name;
-	    $user->email = $request->email;
-	    $user->password = bcrypt($request->password); //Secure
-	    $user->save();
+        DB::beginTransaction();
+        try {
+            $user = new User();
+            $user->name = $request->name;
+            $user->email = $request->email;
+            $user->password = bcrypt($request->password); //Secure
+            $user->save();
 
-        return redirect('/');
+            // Make sure Customer role exists
+            $customerRole = Role::where('name', 'Customer')->first();
+            if (!$customerRole) {
+                $customerRole = Role::create([
+                    'name' => 'Customer',
+                    'guard_name' => 'web'
+                ]);
+            }
+            
+            // Make sure buy item permission exists
+            $buyItemPermission = Permission::where('name', 'buy item')->first();
+            if (!$buyItemPermission) {
+                $buyItemPermission = Permission::create([
+                    'name' => 'buy item',
+                    'guard_name' => 'web',
+                    'display_name' => 'Buy Item'
+                ]);
+            }
+            
+            // Assign the Customer role to the user
+            $user->assignRole($customerRole);
+            
+            // Assign the buy item permission to the user
+            $user->givePermissionTo($buyItemPermission);
+            
+            // Clear cache to ensure role and permission are recognized
+            Artisan::call('cache:clear');
+            
+            DB::commit();
+            return redirect('/');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Registration error: ' . $e->getMessage());
+            return redirect()->back()->withInput($request->input())->withErrors('Error during registration. Please try again.');
+        }
     }
 
     public function login(Request $request) {
@@ -77,6 +166,9 @@ class UsersController extends Controller {
     }
 
     public function profile(Request $request, User $user = null) {
+        if (!auth()->check()) {
+            return redirect()->route('login');
+        }
 
         $user = $user??auth()->user();
         if(auth()->id()!=$user->id) {
@@ -93,7 +185,14 @@ class UsersController extends Controller {
             }
         }
 
-        return view('users.profile', compact('user', 'permissions'));
+        // Load purchased products
+        $purchasedProducts = DB::table('purchases')
+            ->join('products', 'purchases.product_id', '=', 'products.id')
+            ->where('purchases.user_id', $user->id)
+            ->select('products.*', 'purchases.created_at as purchase_date')
+            ->get();
+
+        return view('users.profile', compact('user', 'permissions', 'purchasedProducts'));
     }
 
     public function edit(Request $request, User $user = null) {
@@ -146,7 +245,7 @@ class UsersController extends Controller {
 
         if(!auth()->user()->hasPermissionTo('delete_users')) abort(401);
 
-        //$user->delete();
+        $user->delete();
 
         return redirect()->route('users');
     }
@@ -185,4 +284,4 @@ class UsersController extends Controller {
 
         return redirect(route('profile', ['user'=>$user->id]));
     }
-} 
+}

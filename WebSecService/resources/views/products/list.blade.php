@@ -74,10 +74,22 @@
                         <tr><th width="20%">Name</th><td>{{$product->name}}</td></tr>
                         <tr><th>Model</th><td>{{$product->model}}</td></tr>
                         <tr><th>Code</th><td>{{$product->code}}</td></tr>
-                        <tr><th>Price</th><td>{{$product->price}}</td>
-
-                        <!-- Added Now -->
-                        <!-- Added Now -->
+                        <tr><th>Price</th><td>{{$product->price}}</td></tr>
+                        @if(auth()->user()->hasRole('Employee'))
+                        <tr>
+                            <th>Quantity</th>
+                            <td>
+                                <form action="{{ route('products.update_quantity', $product->id) }}" method="POST" class="d-inline">
+                                    @csrf
+                                    @method('PUT')
+                                    <div class="input-group" style="max-width: 200px;">
+                                        <input type="number" name="quantity" value="{{ $product->quantity }}" class="form-control" min="0">
+                                        <button type="submit" class="btn btn-primary">Update</button>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                        @endif
                         <tr><th>In Stock</th>
                         <td>@if ($product->in_stock)
                             <form action="{{ route('products.buy', $product->id) }}" method="POST" style="margin-top: 5px;">
@@ -87,9 +99,6 @@
                         @else
                             <button disabled>Out of Stock</button>
                         @endif</td></tr>
-                        <!-- Added Now -->
-                        <!-- Added Now -->
-
                         <tr><th>Description</th><td>{{$product->description}}</td></tr>
                     </table>
 

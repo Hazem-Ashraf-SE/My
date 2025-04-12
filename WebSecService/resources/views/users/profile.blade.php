@@ -48,6 +48,39 @@
             </div>
             @endif
         </div>
+
+        <!-- Purchased Products Section -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <h3>Purchased Products</h3>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Product Name</th>
+                                <th>Model</th>
+                                <th>Price</th>
+                                <th>Purchase Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($purchasedProducts as $product)
+                                <tr>
+                                    <td>{{ $product->name }}</td>
+                                    <td>{{ $product->model }}</td>
+                                    <td>{{ $product->price }}</td>
+                                    <td>{{ $product->purchase_date }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="4" class="text-center">No products purchased yet.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 @endsection

@@ -11,6 +11,13 @@ class Product extends Model  {
         'price',
         'model',
         'description',
-        'photo'
+        'photo',
+        'in_stock',
+        'quantity'
     ];
+
+    public function purchases()
+    {
+        return $this->belongsToMany(User::class, 'purchases', 'product_id', 'user_id');
+    }
 }
